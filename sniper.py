@@ -1,4 +1,5 @@
 import json
+import time
 
 from web3 import Web3
 
@@ -6,12 +7,11 @@ pancakeabi = '[{"inputs":[{"internalType":"address","name":"_factory","type":"ad
 
 
 class Mempool:
-    connection = "https://bsc-dataseed1.binance.org/"
+    connection = "https://bsc-dataseed.binance.org/"
     contract_address = "0x10ed43c718714eb63d5aa57b78b54704e256024e"
 
     def __init__(self, connection: str = connection, contract_address: str = contract_address, abi = pancakeabi):
         self.connection = Web3(Web3.HTTPProvider(connection))
-        print(self.connection.isConnected())
         self.contract_address = contract_address
         self.address_checksum = Web3.toChecksumAddress(self.contract_address)
         self.contract = self.connection.eth.contract(address=self.address_checksum, abi=abi)
@@ -19,6 +19,7 @@ class Mempool:
 
     def __pool_data(self):
         pending_pool = self.connection.geth.txpool.content()['pending']
+        # print(self.connection.geth.txpool.content()['queued'])
         # print(pending_pool)
         pool_json = Web3.toJSON(pending_pool)
         # print(pool_json)
@@ -55,11 +56,29 @@ txns = mem.explore()
 
 for txn in txns:
     txnHash = txn['hash']
-    print(txn)
     print(txnHash)
-    gas = txn['gasPrice']
+
+    t = mem.connection.eth.get_transaction(txnHash)
+    print(t['input'])
+    txnInput = mem.contract.decode_function_input(t['input'])
+    print(txnInput)
 
     txn_mined = False
+    count = 0
     while not txn_mined:
-        receipt = mem.connection.eth.get_transaction_receipt(txnHash)
-        print(receipt.status)
+        try:
+            receipt = mem.connection.eth.get_transaction_receipt(txnHash)
+            print(receipt.status)
+            txn_mined = True
+        except:
+            time.sleep(0.5)
+            count = count + 1
+            print('not yet')
+            print(count)
+
+            if count > 5:
+                count = 0
+                break
+            else:
+                pass
+
